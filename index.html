@@ -3,18 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upload Sertifikat PNS Berprestasi</title>
+  <title>Upload Sertifikat PNS Berprestasi - Google Drive</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <div class="app-shell">
     <header class="page-header">
-      <div>
-        <p class="eyebrow">Sistem Upload Dokumen</p>
-        <h1>Upload Sertifikat PNS Berprestasi</h1>
-        <p class="subtitle">
-          Dibuktikan dengan Sertifikat atau SK.
-        </p>
+      <div class="header-main">
+        <div>
+          <p class="eyebrow">Sistem Upload Dokumen</p>
+          <h1>Upload Sertifikat PNS Berprestasi</h1>
+          <p class="subtitle">
+            dari Tahun 2021 - 2025 (Selama menjadi CPNS - Sekarang).
+          </p>
+        </div>
+
+        <div class="auth-panel">
+          <div id="driveStatus" class="status-badge status-offline">Belum terhubung ke Google Drive</div>
+          <div class="auth-actions">
+            <button type="button" id="connectDriveBtn" class="btn btn-primary">
+              Hubungkan Google Drive
+            </button>
+            <button type="button" id="disconnectDriveBtn" class="btn btn-secondary hidden">
+              Putuskan
+            </button>
+          </div>
+          <small class="auth-note">
+            Login harus memakai akun Google yang punya akses ke folder target.
+          </small>
+        </div>
       </div>
     </header>
 
@@ -24,7 +42,7 @@
       <div class="card-header">
         <div>
           <h2>Form Upload</h2>
-          <p>Isi data dengan lengkap. File akan diunggah ke repository GitHub.</p>
+          <p>Isi data dengan lengkap. File akan masuk ke folder Google Drive yang ditentukan.</p>
         </div>
       </div>
 
@@ -40,7 +58,7 @@
 
           <div class="form-group">
             <label for="jenisPenghargaan">Jenis Penghargaan <span class="required">*</span></label>
-            <input type="text" id="jenisPenghargaan" name="jenisPenghargaan" placeholder="Contoh: ASN Berprestasi" />
+            <input type="text" id="jenisPenghargaan" name="jenisPenghargaan" placeholder="Contoh: PNS Berprestasi" />
             <small class="field-error" id="error-jenisPenghargaan"></small>
           </div>
 
@@ -84,22 +102,24 @@
               name="fileSertifikat"
               accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
             />
-            <small class="field-help">Format: PDF, JPG, JPEG, PNG. Maksimal 5 MB.</small>
+            <small class="field-help">Format file: PDF, JPG, JPEG, PNG. Maksimal 5 MB.</small>
             <small class="field-error" id="error-fileSertifikat"></small>
           </div>
         </div>
 
-        <div class="file-preview-card" id="filePreviewCard">
+        <div class="file-preview-card">
           <div class="preview-top">
             <div>
               <h3>Preview File</h3>
               <p id="selectedFileMeta" class="selected-file-meta">Belum ada file dipilih.</p>
             </div>
-            <button type="button" id="clearFileBtn" class="btn btn-secondary btn-sm hidden">Hapus File Pilihan</button>
+            <button type="button" id="clearFileBtn" class="btn btn-secondary btn-sm hidden">
+              Hapus File Pilihan
+            </button>
           </div>
 
           <div class="preview-body">
-            <img id="imagePreview" class="preview-image hidden" alt="Preview gambar file terpilih" />
+            <img id="imagePreview" class="preview-image hidden" alt="Preview gambar" />
             <div id="pdfPreviewMessage" class="pdf-preview hidden">File PDF siap diupload.</div>
           </div>
         </div>
@@ -115,7 +135,7 @@
       <div class="card-header">
         <div>
           <h2>Pencarian & Filter</h2>
-          <p>Saring data upload agar tidak tenggelam dalam tabel.</p>
+          <p>Gunakan filter supaya data tidak berantakan saat jumlah upload mulai banyak.</p>
         </div>
       </div>
 
@@ -147,6 +167,7 @@
 
         <div class="filter-actions">
           <button type="button" id="resetFilterBtn" class="btn btn-secondary">Reset Filter</button>
+          <button type="button" id="reloadDataBtn" class="btn btn-ghost">Muat Ulang Data Drive</button>
         </div>
       </div>
     </section>
@@ -155,7 +176,7 @@
       <div class="card-header">
         <div>
           <h2>Daftar Upload</h2>
-          <p>Data terbaru akan tampil di urutan paling atas.</p>
+          <p>Metadata dibaca dari file JSON di folder Google Drive yang sama.</p>
         </div>
       </div>
 
