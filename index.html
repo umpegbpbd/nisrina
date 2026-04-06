@@ -1,220 +1,553 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upload Sertifikat PNS Berprestasi - Google Drive</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator Laporan Penderasan Informasi</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; margin-bottom: 5px; }
+        .sync-status { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 20px; padding: 5px; border-radius: 4px; background: #eee; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .form-group { margin-bottom: 10px; }
+        .form-group.full-width { grid-column: span 2; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input[type="text"], input[type="date"], select, input[type="file"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        
+        button { padding: 8px 15px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        button.primary { background-color: #007BFF; color: white; width: 100%; padding: 12px; font-size: 15px;}
+        button.primary:hover { background-color: #0056b3; }
+        button.danger { background-color: #dc3545; color: white; margin-right: 5px;}
+        button.success { background-color: #28a745; color: white; }
+        button.warning { background-color: #ffc107; color: black; font-size: 12px;}
+        button.info { background-color: #17a2b8; color: white; }
+        
+        .filter-section { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; margin-top: 30px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid #eee; gap: 15px; background: #fdfdfd; padding: 15px; border-radius: 6px;}
+        .filter-item { flex: 1; min-width: 200px; }
+        
+        .ttd-status { font-size: 13px; color: green; font-weight: bold; margin-bottom: 5px; display: none; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+        table, th, td { border: 1px solid #000; }
+        th, td { padding: 8px 12px; text-align: left; vertical-align: middle; }
+        th { background-color: #fff; font-weight: bold; text-align: center; }
+        .img-preview { width: 45px; height: 80px; object-fit: contain; display: block; margin: 0 auto; }
+        .action-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-  <div class="app-shell">
-    <header class="page-header">
-      <div class="header-main">
-        <div>
-          <p class="eyebrow">Sistem Upload Dokumen</p>
-          <h1>Upload Sertifikat PNS Berprestasi</h1>
-          <p class="subtitle">
-            dari Tahun 2021 - 2025 (Selama menjadi CPNS - Sekarang).
-          </p>
-        </div>
 
-        <div class="auth-panel">
-          <div id="driveStatus" class="status-badge status-offline">Belum terhubung ke Google Drive</div>
-          <div class="auth-actions">
-            <button type="button" id="connectDriveBtn" class="btn btn-primary">
-              Hubungkan Google Drive
-            </button>
-            <button type="button" id="disconnectDriveBtn" class="btn btn-secondary hidden">
-              Putuskan
-            </button>
-          </div>
-          <small class="auth-note">
-            Login harus memakai akun Google yang punya akses ke folder target.
-          </small>
-        </div>
-      </div>
-    </header>
-
-    <div id="alertContainer" class="alert-container"></div>
-
-    <section class="card">
-      <div class="card-header">
-        <div>
-          <h2>Form Upload</h2>
-          <p>Isi data dengan lengkap. File akan masuk ke folder Google Drive yang ditentukan.</p>
-        </div>
-      </div>
-
-      <form id="uploadForm" novalidate>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="namaPegawai">Nama Pegawai <span class="required">*</span></label>
-            <select id="namaPegawai" name="namaPegawai">
-              <option value="">-- Pilih Pegawai --</option>
-            </select>
-            <small class="field-error" id="error-namaPegawai"></small>
-          </div>
-
-          <div class="form-group">
-            <label for="jenisPenghargaan">Jenis Penghargaan <span class="required">*</span></label>
-            <input type="text" id="jenisPenghargaan" name="jenisPenghargaan" placeholder="Contoh: PNS Berprestasi" />
-            <small class="field-error" id="error-jenisPenghargaan"></small>
-          </div>
-
-          <div class="form-group">
-            <label for="lingkupPenghargaan">Lingkup Penghargaan <span class="required">*</span></label>
-            <select id="lingkupPenghargaan" name="lingkupPenghargaan">
-              <option value="">-- Pilih Lingkup --</option>
-              <option value="UNIT KERJA">UNIT KERJA</option>
-              <option value="INSTANSI">INSTANSI</option>
-              <option value="KABUPATEN">KABUPATEN</option>
-              <option value="PROVINSI">PROVINSI</option>
-              <option value="NASIONAL">NASIONAL</option>
-              <option value="LAINNYA">LAINNYA</option>
-            </select>
-            <small class="field-error" id="error-lingkupPenghargaan"></small>
-          </div>
-
-          <div class="form-group">
-            <label for="nomorPiagam">Nomor Piagam / Sertifikat / Apresiasi <span class="required">*</span></label>
-            <input type="text" id="nomorPiagam" name="nomorPiagam" placeholder="Masukkan nomor dokumen" />
-            <small class="field-error" id="error-nomorPiagam"></small>
-          </div>
-
-          <div class="form-group">
-            <label for="tanggalPiagam">Tanggal Piagam / Sertifikat / Apresiasi <span class="required">*</span></label>
-            <input type="date" id="tanggalPiagam" name="tanggalPiagam" />
-            <small class="field-error" id="error-tanggalPiagam"></small>
-          </div>
-
-          <div class="form-group">
-            <label for="tahunPerolehan">Tahun Perolehan <span class="required">*</span></label>
-            <input type="number" id="tahunPerolehan" name="tahunPerolehan" min="1900" max="2100" placeholder="Contoh: 2026" />
-            <small class="field-error" id="error-tahunPerolehan"></small>
-          </div>
-
-          <div class="form-group form-group-full">
-            <label for="fileSertifikat">Upload Sertifikat / Piagam <span class="required">*</span></label>
-            <input
-              type="file"
-              id="fileSertifikat"
-              name="fileSertifikat"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-            />
-            <small class="field-help">Format file: PDF, JPG, JPEG, PNG. Maksimal 5 MB.</small>
-            <small class="field-error" id="error-fileSertifikat"></small>
-          </div>
-        </div>
-
-        <div class="file-preview-card">
-          <div class="preview-top">
-            <div>
-              <h3>Preview File</h3>
-              <p id="selectedFileMeta" class="selected-file-meta">Belum ada file dipilih.</p>
-            </div>
-            <button type="button" id="clearFileBtn" class="btn btn-secondary btn-sm hidden">
-              Hapus File Pilihan
-            </button>
-          </div>
-
-          <div class="preview-body">
-            <img id="imagePreview" class="preview-image hidden" alt="Preview gambar" />
-            <div id="pdfPreviewMessage" class="pdf-preview hidden">File PDF siap diupload.</div>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" id="submitBtn" class="btn btn-primary">Simpan / Upload</button>
-          <button type="button" id="resetBtn" class="btn btn-secondary">Reset Form</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="card">
-      <div class="card-header">
-        <div>
-          <h2>Pencarian & Filter</h2>
-          <p>Gunakan filter supaya data tidak berantakan saat jumlah upload mulai banyak.</p>
-        </div>
-      </div>
-
-      <div class="filter-grid">
+<div class="container">
+    <h2>Form Laporan Penderasan Informasi</h2>
+    <div id="syncStatus" class="sync-status">Mempersiapkan koneksi ke GitHub...</div>
+    
+    <div class="form-grid">
         <div class="form-group">
-          <label for="searchInput">Cari Nama Pegawai</label>
-          <input type="text" id="searchInput" placeholder="Ketik nama pegawai..." />
+            <label>Hari/Tanggal Publikasi</label>
+            <input type="date" id="inputTanggal">
         </div>
-
         <div class="form-group">
-          <label for="yearFilter">Filter Tahun</label>
-          <select id="yearFilter">
-            <option value="">Semua Tahun</option>
-          </select>
+            <label>Link Tautan</label>
+            <input type="text" id="inputLink" placeholder="https://...">
         </div>
-
+        <div class="form-group full-width">
+            <label>Judul / Keterangan Konten</label>
+            <input type="text" id="inputJudul" placeholder="Contoh: (Tiktok: Lambetani) Mentan Amran Sidak...">
+        </div>
         <div class="form-group">
-          <label for="lingkupFilter">Filter Lingkup</label>
-          <select id="lingkupFilter">
-            <option value="">Semua Lingkup</option>
-            <option value="UNIT KERJA">UNIT KERJA</option>
-            <option value="INSTANSI">INSTANSI</option>
-            <option value="KABUPATEN">KABUPATEN</option>
-            <option value="PROVINSI">PROVINSI</option>
-            <option value="NASIONAL">NASIONAL</option>
-            <option value="LAINNYA">LAINNYA</option>
-          </select>
+            <label>Upload Bukti: Like</label>
+            <input type="file" id="imgLike" accept="image/png, image/jpeg">
         </div>
-
-        <div class="filter-actions">
-          <button type="button" id="resetFilterBtn" class="btn btn-secondary">Reset Filter</button>
-          <button type="button" id="reloadDataBtn" class="btn btn-ghost">Muat Ulang Data Drive</button>
+        <div class="form-group">
+            <label>Upload Bukti: Comment</label>
+            <input type="file" id="imgComment" accept="image/png, image/jpeg">
         </div>
-      </div>
-    </section>
-
-    <section class="card table-card">
-      <div class="card-header">
-        <div>
-          <h2>Daftar Upload</h2>
-          <p>Metadata dibaca dari file JSON di folder Google Drive yang sama.</p>
+        <div class="form-group">
+            <label>Upload Bukti: Share</label>
+            <input type="file" id="imgShare" accept="image/png, image/jpeg">
         </div>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>No</th>
-              <th>Nama Pegawai</th>
-              <th>Jenis Penghargaan</th>
-              <th>Lingkup</th>
-              <th>Nomor Piagam</th>
-              <th>Tanggal</th>
-              <th>Tahun</th>
-              <th>Nama File</th>
-              <th>Waktu Upload</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="dataTableBody"></tbody>
-        </table>
-      </div>
-
-      <div id="emptyState" class="empty-state">
-        Belum ada data upload.
-      </div>
-    </section>
-  </div>
-
-  <div id="loadingOverlay" class="loading-overlay hidden">
-    <div class="loading-box">
-      <div class="spinner"></div>
-      <p id="loadingText">Memproses...</p>
+        <div class="form-group full-width">
+            <button id="btnSimpan" class="primary" onclick="tambahData()">+ Tambah ke Tabel (Otomatis Simpan ke GitHub)</button>
+        </div>
     </div>
-  </div>
 
-  <script src="employees.js"></script>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+    <div class="filter-section">
+        <div class="filter-item">
+            <label>Filter Bulan Laporan:</label>
+            <div style="display: flex; gap: 5px;">
+                <select id="filterBulan">
+                    <option value="01">Januari</option><option value="02">Februari</option>
+                    <option value="03">Maret</option><option value="04">April</option>
+                    <option value="05">Mei</option><option value="06">Juni</option>
+                    <option value="07">Juli</option><option value="08">Agustus</option>
+                    <option value="09">September</option><option value="10">Oktober</option>
+                    <option value="11">November</option><option value="12">Desember</option>
+                </select>
+                <button class="info" onclick="renderTabel()">Terapkan Filter</button>
+            </div>
+        </div>
+        <div class="filter-item">
+            <label>Tanggal Cetak Dokumen:</label>
+            <input type="date" id="inputTanggalCetak">
+        </div>
+        <div class="filter-item">
+            <label>Pengaturan Tanda Tangan (Lokal):</label>
+            <div id="ttdStatus" class="ttd-status">✅ Tanda Tangan Tersimpan di Laptop Ini</div>
+            <input type="file" id="inputTtd" accept="image/png, image/jpeg" onchange="simpanTtdLokal(this)">
+            <button id="btnResetTtd" class="warning" style="display:none; margin-top:5px;" onclick="hapusTtdLokal()">Ganti Tanda Tangan</button>
+        </div>
+    </div>
+
+    <table id="tabelLaporan">
+        <thead>
+            <tr>
+                <th style="width: 5%;">No</th>
+                <th style="width: 20%;">Hari/Tanggal</th>
+                <th style="width: 25%;">Judul</th>
+                <th style="width: 20%;">Link</th>
+                <th style="width: 10%;">Like</th>
+                <th style="width: 10%;">Comment</th>
+                <th style="width: 10%;">Share</th>
+                <th style="width: 5%;">Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="tbodyData"></tbody>
+    </table>
+
+    <div class="action-buttons">
+        <div>
+            <button class="warning" onclick="hapusSemuaData()">🗑️ Hapus Semua Data Database GitHub</button>
+        </div>
+        <div>
+            <button class="danger" onclick="cetakPDF()">📄 Cetak PDF</button>
+            <button class="success" onclick="cetakExcel()">📊 Cetak Excel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========================================================
+    // KONFIGURASI GITHUB - WAJIB DIISI!
+    // ========================================================
+    const GITHUB_TOKEN = "MASUKKAN_TOKEN_ANDA_DISINI_DIAWALI_GHP"; // Contoh: "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"
+    const GITHUB_USERNAME = "USERNAME_GITHUB_ANDA";               // Contoh: "umpegbpbd"
+    const GITHUB_REPO = "NAMA_REPOSITORY_ANDA";                   // Contoh: "laporan-penderasan" (Buat repo kosong di Github dulu)
+    const GITHUB_FILE = "database_laporan.json";                  // Biarkan saja ini, file akan otomatis dibuat oleh sistem
+
+    let dataLaporan = []; 
+    let fileSha = ""; // Sistem menggunakan ini untuk mengupdate file yang sama di GitHub
+    
+    // Tanda tangan tetap disimpan di Local Storage karena ini privasi laptop masing-masing
+    let base64TtdLokal = localStorage.getItem('savedSignature') || null; 
+    
+    const profilUser = {
+        nama: "NISRINA ATIKASARI, S.P.",
+        nip: "199703132023212015",
+        unitKerja: "BPP KECAMATAN PULE",
+        wilayahKerja: "DESA JOHO DAN DESA TANGGARAN",
+        lokasiTtd: "Trenggalek",
+        jabatan: "Penyuluh Pertanian"
+    };
+
+    // ========================================================
+    // KONEKSI API KE GITHUB (MEMBACA & MENYIMPAN)
+    // ========================================================
+    async function ambilDataDariGitHub() {
+        const statusEl = document.getElementById('syncStatus');
+        statusEl.innerText = "⏳ Sedang mengambil data dari GitHub...";
+        statusEl.style.color = "#856404";
+        statusEl.style.backgroundColor = "#fff3cd";
+
+        try {
+            const response = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_FILE}`, {
+                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                fileSha = result.sha;
+                const decodedContent = decodeURIComponent(escape(atob(result.content)));
+                dataLaporan = JSON.parse(decodedContent);
+                statusEl.innerText = "✅ Tersambung! Data termuat dari GitHub.";
+                statusEl.style.color = "#155724"; statusEl.style.backgroundColor = "#d4edda";
+            } else if (response.status === 404) {
+                dataLaporan = [];
+                statusEl.innerText = "✅ Tersambung! Database baru akan dibuat.";
+                statusEl.style.color = "#155724"; statusEl.style.backgroundColor = "#d4edda";
+            } else {
+                throw new Error("Gagal load (Cek Token/Repo)");
+            }
+        } catch (error) {
+            console.error(error);
+            statusEl.innerText = "❌ Gagal koneksi ke GitHub! Cek Username, Repo, atau Token Anda.";
+            statusEl.style.color = "#721c24"; statusEl.style.backgroundColor = "#f8d7da";
+        }
+        renderTabel();
+    }
+
+    async function simpanDataKeGitHub() {
+        const statusEl = document.getElementById('syncStatus');
+        const btn = document.getElementById('btnSimpan');
+        
+        statusEl.innerText = "⏳ Menyimpan perubahan ke GitHub...";
+        statusEl.style.color = "#856404"; statusEl.style.backgroundColor = "#fff3cd";
+        btn.disabled = true;
+
+        const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(dataLaporan))));
+
+        try {
+            const response = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_FILE}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: "Update otomatis dari web laporan",
+                    content: contentBase64,
+                    sha: fileSha ? fileSha : undefined
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                fileSha = result.content.sha;
+                statusEl.innerText = "✅ Tersimpan di awan (GitHub)!";
+                statusEl.style.color = "#155724"; statusEl.style.backgroundColor = "#d4edda";
+            } else {
+                throw new Error("Gagal upload");
+            }
+        } catch (error) {
+            console.error(error);
+            statusEl.innerText = "❌ Gagal menyimpan ke GitHub!";
+            statusEl.style.color = "#721c24"; statusEl.style.backgroundColor = "#f8d7da";
+        }
+        btn.disabled = false;
+    }
+
+    // ========================================================
+    // ALUR APLIKASI
+    // ========================================================
+    window.onload = function() {
+        if(base64TtdLokal) {
+            document.getElementById('ttdStatus').style.display = 'block';
+            document.getElementById('inputTtd').style.display = 'none';
+            document.getElementById('btnResetTtd').style.display = 'inline-block';
+        }
+        
+        const currentMonth = new Date().getMonth() + 1;
+        const monthString = currentMonth < 10 ? '0' + currentMonth : currentMonth.toString();
+        document.getElementById('filterBulan').value = monthString;
+        
+        // Panggil data dari github saat web pertama dibuka
+        ambilDataDariGitHub(); 
+    };
+
+    function compressImage(file) {
+        return new Promise((resolve) => {
+            if (!file) return resolve(null);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_WIDTH = 400; let scaleSize = 1;
+                    if(img.width > MAX_WIDTH) { scaleSize = MAX_WIDTH / img.width; }
+                    canvas.width = img.width * scaleSize;
+                    canvas.height = img.height * scaleSize;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.6));
+                }
+            };
+        });
+    }
+
+    async function simpanTtdLokal(input) {
+        if (input.files && input.files[0]) {
+            base64TtdLokal = await compressImage(input.files[0]); 
+            localStorage.setItem('savedSignature', base64TtdLokal);
+            document.getElementById('ttdStatus').style.display = 'block';
+            document.getElementById('inputTtd').style.display = 'none';
+            document.getElementById('btnResetTtd').style.display = 'inline-block';
+            alert("Tanda tangan berhasil disimpan di browser Anda!");
+        }
+    }
+
+    function hapusTtdLokal() {
+        localStorage.removeItem('savedSignature');
+        base64TtdLokal = null;
+        document.getElementById('ttdStatus').style.display = 'none';
+        document.getElementById('inputTtd').style.display = 'block';
+        document.getElementById('inputTtd').value = '';
+        document.getElementById('btnResetTtd').style.display = 'none';
+    }
+
+    function formatTanggal(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+    }
+
+    function formatTanggalCetak(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: '2-digit' });
+    }
+
+    async function tambahData() {
+        const inputTgl = document.getElementById('inputTanggal').value;
+        const judul = document.getElementById('inputJudul').value;
+        const link = document.getElementById('inputLink').value;
+        
+        const fileLike = document.getElementById('imgLike').files[0];
+        const fileComment = document.getElementById('imgComment').files[0];
+        const fileShare = document.getElementById('imgShare').files[0];
+
+        if(!inputTgl || !judul) { alert("Hari/Tanggal dan Judul wajib diisi!"); return; }
+
+        const base64Like = await compressImage(fileLike);
+        const base64Comment = await compressImage(fileComment);
+        const base64Share = await compressImage(fileShare);
+        const bulanAngka = inputTgl.split('-')[1];
+
+        dataLaporan.push({
+            id: Date.now(),
+            bulanFilter: bulanAngka,
+            tanggal: formatTanggal(inputTgl),
+            judul: judul,
+            link: link,
+            imgLike: base64Like,
+            imgComment: base64Comment,
+            imgShare: base64Share
+        });
+
+        document.getElementById('inputJudul').value = '';
+        document.getElementById('inputLink').value = '';
+        document.getElementById('imgLike').value = '';
+        document.getElementById('imgComment').value = '';
+        document.getElementById('imgShare').value = '';
+
+        document.getElementById('filterBulan').value = bulanAngka;
+        renderTabel();
+        
+        // Panggil fungsi simpan ke github setelah array diupdate
+        await simpanDataKeGitHub();
+    }
+
+    async function hapusBaris(id) {
+        if(confirm("Apakah Anda yakin ingin menghapus baris ini dari GitHub?")) {
+            dataLaporan = dataLaporan.filter(row => row.id !== id);
+            renderTabel();
+            await simpanDataKeGitHub();
+        }
+    }
+
+    async function hapusSemuaData() {
+        if(confirm("AWAS! Ini akan menghapus SEMUA data tabel langsung dari GitHub. Lanjutkan?")) {
+            dataLaporan = [];
+            renderTabel();
+            await simpanDataKeGitHub();
+        }
+    }
+
+    function getFilteredData() {
+        const filterBulan = document.getElementById('filterBulan').value;
+        return dataLaporan.filter(row => row.bulanFilter === filterBulan);
+    }
+
+    function renderTabel() {
+        const tbody = document.getElementById('tbodyData');
+        tbody.innerHTML = '';
+        const dataBulanIni = getFilteredData();
+        
+        if (dataBulanIni.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">Tidak ada data pada bulan ini</td></tr>';
+            return;
+        }
+
+        dataBulanIni.forEach((row, index) => {
+            const imgL = row.imgLike ? `<img src="${row.imgLike}" class="img-preview">` : '';
+            const imgC = row.imgComment ? `<img src="${row.imgComment}" class="img-preview">` : '';
+            const imgS = row.imgShare ? `<img src="${row.imgShare}" class="img-preview">` : '';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align:center;">${index + 1}</td>
+                <td style="text-align:center; white-space: nowrap;">${row.tanggal}</td>
+                <td>${row.judul}</td>
+                <td style="word-break: break-all;"><a href="${row.link}" target="_blank" style="color:blue; text-decoration:underline;">${row.link}</a></td>
+                <td style="text-align:center; padding: 2px;">${imgL}</td>
+                <td style="text-align:center; padding: 2px;">${imgC}</td>
+                <td style="text-align:center; padding: 2px;">${imgS}</td>
+                <td style="text-align:center;"><button class="danger" style="padding:4px 8px; font-size:11px;" onclick="hapusBaris(${row.id})">Hapus</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ========================================================
+    // CETAK PDF & EXCEL (Sama seperti sebelumnya)
+    // ========================================================
+    function cetakPDF() {
+        const dataCetak = getFilteredData();
+        if(dataCetak.length === 0) { alert("Tidak ada data di bulan ini untuk dicetak!"); return; }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const selectBulan = document.getElementById("filterBulan");
+        const namaBulan = selectBulan.options[selectBulan.selectedIndex].text.toUpperCase();
+
+        doc.setFontSize(10); doc.setFont("helvetica", "bold");
+        doc.text("LAPORAN PENDERASAN INFORMASI DAN PEMBANGUNAN PERTANIAN PENYULUH PERTANIAN TAHUN 2026", pageWidth / 2, 18, { align: 'center' });
+        doc.setFontSize(10); doc.setFont("helvetica", "normal");
+        
+        const startX = 14; const colonX = 45; 
+        doc.setFont("helvetica", "bold");
+        doc.text("PERIODE", startX, 30); doc.text(`: BULAN ${namaBulan}`, colonX, 30);
+        doc.setFont("helvetica", "normal");
+        doc.text("Nama Penyuluh", startX, 36); doc.text(`: ${profilUser.nama}`, colonX, 36);
+        doc.text("NIP", startX, 42);           doc.text(`: ${profilUser.nip}`, colonX, 42);
+        doc.text("Unit Kerja", startX, 48);    doc.text(`: ${profilUser.unitKerja}`, colonX, 48);
+        doc.text("Wilayah Kerja", startX, 54); doc.text(`: ${profilUser.wilayahKerja}`, colonX, 54);
+
+        const tableBody = dataCetak.map((row, index) => [ index + 1, row.tanggal, row.judul, row.link, '', '', '' ]);
+
+        doc.autoTable({
+            startY: 62,
+            head: [['No', 'Hari/Tanggal', 'Judul', 'Link', 'Like', 'Comment', 'Share']],
+            body: tableBody, theme: 'grid', 
+            styles: { fontSize: 9, valign: 'middle', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.3 },
+            headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], halign: 'center', valign: 'middle', fontStyle: 'bold', minCellHeight: 10 },
+            bodyStyles: { minCellHeight: 28 },
+            columnStyles: {
+                0: { cellWidth: 8, halign: 'center' }, 1: { cellWidth: 45, halign: 'center' }, 
+                2: { cellWidth: 38 }, 3: { cellWidth: 37, textColor: [0, 0, 255] }, 
+                4: { cellWidth: 18, halign: 'center' }, 5: { cellWidth: 18, halign: 'center' }, 6: { cellWidth: 18, halign: 'center' }  
+            },
+            didDrawCell: function(data) {
+                if (data.section === 'body') {
+                    const rowData = dataCetak[data.row.index];
+                    const imgW = 14; const imgH = 25;  
+                    const xPos = data.cell.x + ((data.cell.width - imgW) / 2);
+                    const yPos = data.cell.y + ((data.cell.height - imgH) / 2);
+                    if (data.column.index === 4 && rowData.imgLike) { doc.addImage(rowData.imgLike, 'JPEG', xPos, yPos, imgW, imgH); }
+                    if (data.column.index === 5 && rowData.imgComment) { doc.addImage(rowData.imgComment, 'JPEG', xPos, yPos, imgW, imgH); }
+                    if (data.column.index === 6 && rowData.imgShare) { doc.addImage(rowData.imgShare, 'JPEG', xPos, yPos, imgW, imgH); }
+                }
+            }
+        });
+
+        let finalY = doc.lastAutoTable.finalY + 15;
+        if (finalY > 230) { doc.addPage(); finalY = 30; }
+        const rightMargin = 135; 
+        const inputTglCetak = document.getElementById('inputTanggalCetak').value;
+        const tglCetak = inputTglCetak ? formatTanggalCetak(inputTglCetak) : formatTanggalCetak(new Date());
+        
+        doc.text(`${profilUser.lokasiTtd}, ${tglCetak}`, rightMargin, finalY);
+        doc.text(profilUser.jabatan, rightMargin, finalY + 5);
+        if (base64TtdLokal) { doc.addImage(base64TtdLokal, 'JPEG', rightMargin + 5, finalY + 8, 30, 15); }
+        const namaY = finalY + 30;
+        doc.setFont("helvetica", "bold"); doc.text(profilUser.nama, rightMargin, namaY);
+        const textWidth = doc.getTextWidth(profilUser.nama);
+        doc.setLineWidth(0.4); doc.line(rightMargin, namaY + 1, rightMargin + textWidth, namaY + 1); 
+        doc.setFont("helvetica", "normal"); doc.text(`NIPPPK. ${profilUser.nip}`, rightMargin, namaY + 6);
+
+        doc.save(`Laporan_Bulan_${namaBulan}_${profilUser.nama}.pdf`);
+    }
+
+    async function cetakExcel() {
+        const dataCetak = getFilteredData();
+        if(dataCetak.length === 0) { alert("Tidak ada data di bulan ini untuk dicetak!"); return; }
+
+        const selectBulan = document.getElementById("filterBulan");
+        const namaBulan = selectBulan.options[selectBulan.selectedIndex].text.toUpperCase();
+
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet(`Laporan ${namaBulan}`);
+
+        ws.columns = [
+            { width: 5 }, { width: 22 }, { width: 45 }, { width: 40 }, 
+            { width: 14 }, { width: 14 }, { width: 14 }
+        ];
+
+        ws.mergeCells('A1:G1');
+        const titleCell = ws.getCell('A1');
+        titleCell.value = "LAPORAN PENDERASAN INFORMASI DAN PEMBANGUNAN PERTANIAN PENYULUH PERTANIAN TAHUN 2026";
+        titleCell.font = { bold: true, size: 11 }; titleCell.alignment = { horizontal: 'center' };
+
+        ws.getCell('B3').value = "PERIODE";       ws.getCell('C3').value = `: BULAN ${namaBulan}`; ws.getCell('B3').font = { bold: true }; ws.getCell('C3').font = { bold: true };
+        ws.getCell('B4').value = "Nama Penyuluh"; ws.getCell('C4').value = `: ${profilUser.nama}`;
+        ws.getCell('B5').value = "NIP";           ws.getCell('C5').value = `: ${profilUser.nip}`;
+        ws.getCell('B6').value = "Unit Kerja";    ws.getCell('C6').value = `: ${profilUser.unitKerja}`;
+        ws.getCell('B7').value = "Wilayah Kerja"; ws.getCell('C7').value = `: ${profilUser.wilayahKerja}`;
+
+        const startRow = 9;
+        const headerTabel = ws.getRow(startRow);
+        headerTabel.values = ['No', 'Hari/Tanggal', 'Judul', 'Link', 'Like', 'Comment', 'Share'];
+        
+        ['A','B','C','D','E','F','G'].forEach((col) => {
+            const cell = ws.getCell(`${col}${startRow}`);
+            cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        const addImageToCell = (base64String, colIndex, rowIndex) => {
+            if(!base64String) return;
+            const base64Data = base64String.split(';base64,').pop();
+            const imageId = wb.addImage({ base64: base64Data, extension: 'jpeg' });
+            ws.addImage(imageId, { tl: { col: colIndex + 0.2, row: rowIndex + 0.1 }, ext: { width: 45, height: 75 }, editAs: 'oneCell' });
+        };
+
+        let currentRow = startRow + 1;
+        dataCetak.forEach((row, index) => {
+            const dataBaris = ws.getRow(currentRow);
+            dataBaris.values = [index + 1, row.tanggal, row.judul, row.link, '', '', ''];
+            dataBaris.height = 90; 
+
+            ['A','B','C','D','E','F','G'].forEach((col) => {
+                const cell = ws.getCell(`${col}${currentRow}`);
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                cell.alignment = { vertical: 'middle', wrapText: true };
+                if(['A','B','E','F','G'].includes(col)) { cell.alignment.horizontal = 'center'; }
+            });
+
+            addImageToCell(row.imgLike, 4, currentRow - 1);
+            addImageToCell(row.imgComment, 5, currentRow - 1);
+            addImageToCell(row.imgShare, 6, currentRow - 1);
+            currentRow++;
+        });
+
+        const sigRow = currentRow + 2;
+        const inputTglCetak = document.getElementById('inputTanggalCetak').value;
+        const tglCetak = inputTglCetak ? formatTanggalCetak(inputTglCetak) : formatTanggalCetak(new Date());
+
+        ws.getCell(`E${sigRow}`).value = `${profilUser.lokasiTtd}, ${tglCetak}`;
+        ws.getCell(`E${sigRow + 1}`).value = profilUser.jabatan;
+        ws.getRow(sigRow + 2).height = 50; 
+
+        if (base64TtdLokal) {
+            const base64Data = base64TtdLokal.split(';base64,').pop();
+            const imageId = wb.addImage({ base64: base64Data, extension: 'jpeg' });
+            ws.addImage(imageId, { tl: { col: 4.1, row: sigRow + 1.1 }, ext: { width: 100, height: 40 }, editAs: 'absolute' });
+        }
+
+        ws.getCell(`E${sigRow + 3}`).value = profilUser.nama;
+        ws.getCell(`E${sigRow + 3}`).font = { bold: true, underline: true };
+        ws.getCell(`E${sigRow + 4}`).value = `NIPPPK. ${profilUser.nip}`;
+
+        const buffer = await wb.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Laporan_Bulan_${namaBulan}_${profilUser.nama}.xlsx`);
+    }
+</script>
+
 </body>
 </html>
