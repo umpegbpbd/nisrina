@@ -393,7 +393,7 @@
     }
 
     async function hapusBaris(id) {
-        if(confirm("Apakah Anda yakin ingin menghapus baris ini dari GitHub?")) {
+        if(confirm("Apakah Anda yakin ingin menghapus baris ini?")) {
             dataLaporan = dataLaporan.filter(row => row.id !== id);
             renderTabel();
             await simpanDataSistem();
