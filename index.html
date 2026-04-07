@@ -34,7 +34,9 @@
         th, td { padding: 8px 12px; text-align: left; vertical-align: middle; }
         th { background-color: #fff; font-weight: bold; text-align: center; }
         .img-preview { width: 45px; height: 80px; object-fit: contain; display: block; margin: 0 auto; }
-        .action-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+        
+        /* Ubah posisi tombol aksi menjadi di sebelah kanan karena tombol hapus semua dihilangkan */
+        .action-buttons { display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -98,8 +100,8 @@
             <input type="date" id="inputTanggalCetak">
         </div>
         <div class="filter-item">
-            <label>Pengaturan Tanda Tangan (Lokal):</label>
-            <div id="ttdStatus" class="ttd-status">✅ Tanda Tangan Tersimpan di Laptop Ini</div>
+            <label>Pengaturan Tanda Tangan:</label>
+            <div id="ttdStatus" class="ttd-status">✅ Tersimpan di Cloud (GitHub)</div>
             <input type="file" id="inputTtd" accept="image/png, image/jpeg" onchange="simpanTtdLokal(this)">
             <button id="btnResetTtd" class="warning" style="display:none; margin-top:5px;" onclick="hapusTtdLokal()">Ganti Tanda Tangan</button>
         </div>
@@ -123,9 +125,6 @@
 
     <div class="action-buttons">
         <div>
-            <button class="warning" onclick="hapusSemuaData()">🗑️ Hapus Semua Data Database GitHub</button>
-        </div>
-        <div>
             <button class="danger" onclick="cetakPDF()">📄 Cetak PDF</button>
             <button class="success" onclick="cetakExcel()">📊 Cetak Excel</button>
         </div>
@@ -134,18 +133,17 @@
 
 <script>
     // ========================================================
-    // KONFIGURASI GITHUB - WAJIB DIISI!
+    // KONFIGURASI GITHUB - WAJIB DIISI SEBELUM COMMIT!
     // ========================================================
-    const GITHUB_TOKEN = "ghp_" + "tqwekqRaNtmx6Gb9Qfr1czDzrWTcqG0mhsVd"; // Contoh: "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"
-    const GITHUB_USERNAME = "umpegbpbd";               // Contoh: "umpegbpbd"
-    const GITHUB_REPO = "nisrina";                   // Contoh: "nisrina" (Buat repo kosong di Github dulu)
-    const GITHUB_FILE = "database_laporan.json";                  // Biarkan saja ini, file akan otomatis dibuat oleh sistem
+    const GITHUB_TOKEN = "ghp_" + "paso0eyQ6zo2fEN7QImpCdRmgaMxTy2nXIzD"; 
+    const GITHUB_USERNAME = "umpegbpbd";               
+    const GITHUB_REPO = "nisrina";                   
+    const GITHUB_FILE = "database_laporan.json";                  
 
     let dataLaporan = []; 
-    let fileSha = ""; // Sistem menggunakan ini untuk mengupdate file yang sama di GitHub
-    
-    // Tanda tangan tetap disimpan di Local Storage karena ini privasi laptop masing-masing
-    let base64TtdLokal = localStorage.getItem('savedSignature') || null; 
+    let fileSha = ""; 
+    let isModeOffline = false; 
+    let base64TtdLokal = null; // Tanda tangan sekarang dimuat dari GitHub
     
     const profilUser = {
         nama: "NISRINA ATIKASARI, S.P.",
@@ -156,14 +154,42 @@
         jabatan: "Penyuluh Pertanian"
     };
 
+    // FUNGSI UPDATE UI TANDA TANGAN
+    function perbaruiUiTtd() {
+        if(base64TtdLokal) {
+            document.getElementById('ttdStatus').style.display = 'block';
+            document.getElementById('inputTtd').style.display = 'none';
+            document.getElementById('btnResetTtd').style.display = 'inline-block';
+        } else {
+            document.getElementById('ttdStatus').style.display = 'none';
+            document.getElementById('inputTtd').style.display = 'block';
+            document.getElementById('inputTtd').value = '';
+            document.getElementById('btnResetTtd').style.display = 'none';
+        }
+    }
+
     // ========================================================
     // KONEKSI API KE GITHUB (MEMBACA & MENYIMPAN)
     // ========================================================
-    async function ambilDataDariGitHub() {
+    async function muatDataAwal() {
         const statusEl = document.getElementById('syncStatus');
+        
+        if (GITHUB_TOKEN.includes("MASUKKAN_SISA_TOKEN") || GITHUB_TOKEN.trim() === "ghp_") {
+            isModeOffline = true;
+            let offlineData = JSON.parse(localStorage.getItem('dataPenderasanOffline'));
+            if(offlineData) {
+                if(Array.isArray(offlineData)) { dataLaporan = offlineData; } 
+                else { dataLaporan = offlineData.laporan || []; base64TtdLokal = offlineData.ttd || null; }
+            }
+            perbaruiUiTtd();
+            statusEl.innerHTML = "⚠️ <b>Mode Offline Aktif</b> (Token GitHub belum diisi). Data aman tersimpan di browser ini.";
+            statusEl.style.color = "#856404"; statusEl.style.backgroundColor = "#fff3cd";
+            renderTabel();
+            return;
+        }
+
         statusEl.innerText = "⏳ Sedang mengambil data dari GitHub...";
-        statusEl.style.color = "#856404";
-        statusEl.style.backgroundColor = "#fff3cd";
+        statusEl.style.color = "#004085"; statusEl.style.backgroundColor = "#cce5ff";
 
         try {
             const response = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_FILE}`, {
@@ -174,11 +200,24 @@
                 const result = await response.json();
                 fileSha = result.sha;
                 const decodedContent = decodeURIComponent(escape(atob(result.content)));
-                dataLaporan = JSON.parse(decodedContent);
+                const parsedData = JSON.parse(decodedContent);
+                
+                // Migrasi otomatis jika data di GitHub masih format Array lama
+                if (Array.isArray(parsedData)) {
+                    dataLaporan = parsedData;
+                    base64TtdLokal = null;
+                } else {
+                    // Format baru: Object berisi Laporan dan Tanda Tangan
+                    dataLaporan = parsedData.laporan || [];
+                    base64TtdLokal = parsedData.ttd || null;
+                }
+
+                perbaruiUiTtd();
                 statusEl.innerText = "✅ Tersambung! Data termuat dari GitHub.";
                 statusEl.style.color = "#155724"; statusEl.style.backgroundColor = "#d4edda";
             } else if (response.status === 404) {
-                dataLaporan = [];
+                dataLaporan = []; base64TtdLokal = null;
+                perbaruiUiTtd();
                 statusEl.innerText = "✅ Tersambung! Database baru akan dibuat.";
                 statusEl.style.color = "#155724"; statusEl.style.backgroundColor = "#d4edda";
             } else {
@@ -186,21 +225,41 @@
             }
         } catch (error) {
             console.error(error);
-            statusEl.innerText = "❌ Gagal koneksi ke GitHub! Cek Username, Repo, atau Token Anda.";
+            isModeOffline = true;
+            let offlineData = JSON.parse(localStorage.getItem('dataPenderasanOffline'));
+            if(offlineData) {
+                if(Array.isArray(offlineData)) { dataLaporan = offlineData; } 
+                else { dataLaporan = offlineData.laporan || []; base64TtdLokal = offlineData.ttd || null; }
+            }
+            perbaruiUiTtd();
+            statusEl.innerHTML = "❌ <b>Koneksi GitHub Gagal</b>. Beralih ke Mode Offline (Local Storage).";
             statusEl.style.color = "#721c24"; statusEl.style.backgroundColor = "#f8d7da";
         }
         renderTabel();
     }
 
-    async function simpanDataKeGitHub() {
+    async function simpanDataSistem() {
         const statusEl = document.getElementById('syncStatus');
         const btn = document.getElementById('btnSimpan');
         
-        statusEl.innerText = "⏳ Menyimpan perubahan ke GitHub...";
-        statusEl.style.color = "#856404"; statusEl.style.backgroundColor = "#fff3cd";
-        btn.disabled = true;
+        // Paket data berisi tabel dan tanda tangan
+        const payloadData = {
+            laporan: dataLaporan,
+            ttd: base64TtdLokal
+        };
 
-        const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(dataLaporan))));
+        if(isModeOffline) {
+            localStorage.setItem('dataPenderasanOffline', JSON.stringify(payloadData));
+            statusEl.innerHTML = "✅ <b>Tersimpan Lokal</b>. (Berjalan di Mode Offline)";
+            statusEl.style.color = "#856404"; statusEl.style.backgroundColor = "#fff3cd";
+            return;
+        }
+
+        statusEl.innerText = "⏳ Menyimpan perubahan ke GitHub...";
+        statusEl.style.color = "#004085"; statusEl.style.backgroundColor = "#cce5ff";
+        if(btn) btn.disabled = true;
+
+        const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(payloadData))));
 
         try {
             const response = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_FILE}`, {
@@ -210,7 +269,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    message: "Update otomatis dari web laporan",
+                    message: "Update data laporan otomatis via web",
                     content: contentBase64,
                     sha: fileSha ? fileSha : undefined
                 })
@@ -229,25 +288,19 @@
             statusEl.innerText = "❌ Gagal menyimpan ke GitHub!";
             statusEl.style.color = "#721c24"; statusEl.style.backgroundColor = "#f8d7da";
         }
-        btn.disabled = false;
+        if(btn) btn.disabled = false;
     }
 
     // ========================================================
     // ALUR APLIKASI
     // ========================================================
     window.onload = function() {
-        if(base64TtdLokal) {
-            document.getElementById('ttdStatus').style.display = 'block';
-            document.getElementById('inputTtd').style.display = 'none';
-            document.getElementById('btnResetTtd').style.display = 'inline-block';
-        }
-        
         const currentMonth = new Date().getMonth() + 1;
         const monthString = currentMonth < 10 ? '0' + currentMonth : currentMonth.toString();
         document.getElementById('filterBulan').value = monthString;
         
-        // Panggil data dari github saat web pertama dibuka
-        ambilDataDariGitHub(); 
+        // Memuat data tabel dan TTD dari cloud
+        muatDataAwal(); 
     };
 
     function compressImage(file) {
@@ -275,21 +328,19 @@
     async function simpanTtdLokal(input) {
         if (input.files && input.files[0]) {
             base64TtdLokal = await compressImage(input.files[0]); 
-            localStorage.setItem('savedSignature', base64TtdLokal);
-            document.getElementById('ttdStatus').style.display = 'block';
-            document.getElementById('inputTtd').style.display = 'none';
-            document.getElementById('btnResetTtd').style.display = 'inline-block';
-            alert("Tanda tangan berhasil disimpan di browser Anda!");
+            perbaruiUiTtd();
+            // Langsung tembak ke GitHub
+            await simpanDataSistem();
+            alert("Tanda tangan berhasil diunggah dan tersimpan aman di Database GitHub!");
         }
     }
 
-    function hapusTtdLokal() {
-        localStorage.removeItem('savedSignature');
-        base64TtdLokal = null;
-        document.getElementById('ttdStatus').style.display = 'none';
-        document.getElementById('inputTtd').style.display = 'block';
-        document.getElementById('inputTtd').value = '';
-        document.getElementById('btnResetTtd').style.display = 'none';
+    async function hapusTtdLokal() {
+        if(confirm("Yakin ingin menghapus tanda tangan dari database?")) {
+            base64TtdLokal = null;
+            perbaruiUiTtd();
+            await simpanDataSistem();
+        }
     }
 
     function formatTanggal(dateString) {
@@ -338,23 +389,14 @@
         document.getElementById('filterBulan').value = bulanAngka;
         renderTabel();
         
-        // Panggil fungsi simpan ke github setelah array diupdate
-        await simpanDataKeGitHub();
+        await simpanDataSistem();
     }
 
     async function hapusBaris(id) {
         if(confirm("Apakah Anda yakin ingin menghapus baris ini dari GitHub?")) {
             dataLaporan = dataLaporan.filter(row => row.id !== id);
             renderTabel();
-            await simpanDataKeGitHub();
-        }
-    }
-
-    async function hapusSemuaData() {
-        if(confirm("AWAS! Ini akan menghapus SEMUA data tabel langsung dari GitHub. Lanjutkan?")) {
-            dataLaporan = [];
-            renderTabel();
-            await simpanDataKeGitHub();
+            await simpanDataSistem();
         }
     }
 
@@ -394,7 +436,7 @@
     }
 
     // ========================================================
-    // CETAK PDF & EXCEL (Sama seperti sebelumnya)
+    // CETAK PDF & EXCEL 
     // ========================================================
     function cetakPDF() {
         const dataCetak = getFilteredData();
