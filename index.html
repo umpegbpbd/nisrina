@@ -278,7 +278,7 @@
             if (response.ok) {
                 const result = await response.json();
                 fileSha = result.content.sha;
-                statusEl.innerText = "✅ Tersimpan di awan (GitHub)!";
+                statusEl.innerText = "✅ Tersimpan";
                 statusEl.style.color = "#155724"; statusEl.style.backgroundColor = "#d4edda";
             } else {
                 throw new Error("Gagal upload");
